@@ -1,63 +1,68 @@
 import streamlit as st
 from google import genai
-from google.genai import types
 from PIL import Image
-import os
 
-# Configuración de la página web
-st.set_page_config(page_title="ChefVisual - Recetas Inteligentes", page_icon="🍳", layout="centered")
+# Configuración de la página (Pone el título en la pestaña del navegador y un diseño ancho)
+st.set_page_config(page_title="ChefVisual - IA", page_icon="🍳", layout="wide")
 
-st.title("🍳 ChefVisual")
-st.write("¡Toma una foto a tus ingredientes y la IA te dirá qué cocinar gratis!")
+# Diseño hermoso con títulos avanzados
+st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>🍳 ChefVisual</h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #555555;'>¡Toma una foto a tus ingredientes y la IA te dirá qué cocinar gratis!</h3>", unsafe_allow_html=True)
+st.write("---")
 
-# Intentar obtener la API Key de los secretos guardados en el servidor
-# Si no existe, busca una variable de entorno local
-api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+# Intentar obtener la API Key desde los Secrets de Streamlit de forma segura
+api_key = None
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
 
 if not api_key:
-    st.error("Error de configuración: La API Key de Gemini no se ha configurado en el servidor.", icon="🚨")
+    st.error("🚨 Error de configuración: La API Key de Gemini no se ha configurado correctamente en los Secrets del servidor.")
 else:
-    # Inicializar el cliente de Google GenAI de forma interna y automática
+    # Inicializar el cliente de Google GenAI con la clave de los secrets
     client = genai.Client(api_key=api_key)
 
-    # Componente para subir la imagen
-    uploaded_file = st.file_uploader("Sube una foto de tus ingredientes o tu refrigerador", type=["jpg", "jpeg", "png"])
+    # Crear dos columnas: Izquierda para subir la foto, Derecha para los resultados
+    col1, col2 = st.columns([1, 1.2], gap="large")
 
-    # Filtros adicionales
-    preferencia = st.selectbox(
-        "¿Tienes alguna preferencia de dieta o tiempo?",
-        ["Sin restricciones", "Vegana", "Vegetariana", "Saludable/Fitness", "Rápida (menos de 20 min)", "Apta para niños"]
-    )
-
-    if uploaded_file is not None:
-        imagen = Image.open(uploaded_file)
-        st.image(imagen, caption="Tus ingredientes", use_container_width=True)
+    with col1:
+        st.subheader("📸 Sube la foto de tu refrigerador o ingredientes")
+        archivo_subido = st.file_uploader("Elige una imagen...", type=["jpg", "jpeg", "png"])
         
-        if st.button("✨ ¡Generar Receta!"):
-            with st.spinner("El Chef está analizando tus ingredientes..."):
-                try:
-                    prompt_texto = f"""
-                    Actúa como un chef profesional creativo. Analiza detenidamente la imagen provista e identifica todos los ingredientes visibles.
-                    Con base en ellos (y permitiendo ingredientes básicos de alacena como agua, sal, pimienta, aceite u otros condimentos comunes), 
-                    crea una receta deliciosa.
-                    
-                    Restricción de dieta/tiempo seleccionada por el usuario: {preferencia}.
-                    
-                    Devuelve la respuesta estructurada elegantemente en formato Markdown:
-                    1. Nombre del Platillo (con un emoji).
-                    2. Tiempo estimado y dificultad.
-                    3. Lista de ingredientes identificados en la foto y los extras de alacena necesarios.
-                    4. Instrucciones paso a paso bien detalladas.
-                    5. Un tip secreto del chef para mejorar el platillo.
-                    """
+        if archivo_subido:
+            imagen = Image.open(archivo_subido)
+            # Muestra la imagen en una tarjeta bonita con bordes
+            with st.container(border=True):
+                st.image(imagen, caption="Tus ingredientes listos", use_container_width=True)
 
-                    response = client.models.generate_content(
-                        model='gemini-1.5-flash',
-                        contents=[imagen, prompt_texto]
+    with col2:
+        st.subheader("🧑‍🍳 Recetas Sugeridas")
+        
+        if archivo_subido:
+            # Mensaje de carga animado super profesional
+            with st.spinner("🧠 El chef está analizando tu foto y creando las mejores recetas..."):
+                try:
+                    # El prompt definitivo para que la IA decore el texto de forma hermosa
+                    prompt = (
+                        "Actúa como un chef profesional y creativo. Analiza detalladamente los ingredientes "
+                        "visibles en esta imagen y propón 3 recetas diferentes que se puedan preparar con ellos. "
+                        "Usa negritas para los títulos, listas ordenadas para los pasos, pon los ingredientes "
+                        "necesarios al inicio de cada receta y decora los textos con emojis de cocina (🍅, 🍗, 🧅, 🧂) "
+                        "para que se vea muy vistoso, limpio, elegante y apetecible."
                     )
                     
-                    st.success("¡Receta lista!")
-                    st.markdown(response.text)
+                    # Llamada al modelo de Gemini con soporte de imagen
+                    respuesta = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=[prompt, imagen]
+                    )
                     
+                    # Mostrar el resultado dentro de un contenedor elegante con bordes
+                    with st.container(border=True):
+                        st.markdown(respuesta.text)
+                        st.success("¡Buen provecho! 🍽️")
+                        
                 except Exception as e:
-                    st.error(f"Hubo un error al procesar tu solicitud. Por favor intenta de nuevo.")
+                    st.error(f"❌ Hubo un problema al conectar con Gemini. Verifica tu API Key. Detalle: {e}")
+        else:
+            # Mensaje amigable si aún no suben foto
+            st.info("💡 Por favor, sube una foto en la sección de la izquierda para que el chef pueda empezar a cocinar.")
