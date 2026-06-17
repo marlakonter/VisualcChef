@@ -36,8 +36,18 @@ st.markdown(
         color: var(--tinta) !important;
     }
 
-    p, span, div, label, .stMarkdown {
+    p, span, div, label, .stMarkdown, .stRadio label, .stFileUploader label,
+    [data-testid="stWidgetLabel"] p {
         font-family: 'Inter', sans-serif;
+        color: var(--tinta) !important;
+    }
+
+    [data-testid="stFileUploaderDropzone"] {
+        background-color: var(--hueso) !important;
+        border: 1px dashed #C9C2AE !important;
+    }
+    [data-testid="stFileUploaderDropzone"] * {
+        color: var(--tinta) !important;
     }
 
     .lc-hero {
